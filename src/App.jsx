@@ -1020,15 +1020,18 @@ function AdminShell() {
   if (loading) return <LoadingPage />;
 
   const isBarber = Boolean(session.barberId);
+  const secondaryScreens = ['services', 'barbers', 'plan', 'clients'];
+  const isSecondary = secondaryScreens.includes(screen);
+  const goBack = () => setScreen('dashboard');
   const current = {
     dashboard: <DashboardScreen session={session} setScreen={setScreen} />,
     agenda: <AgendaScreen session={session} />,
     finance: <FinanceScreen session={session} />,
     whatsapp: isBarber ? <DashboardScreen session={session} setScreen={setScreen} /> : <WhatsappScreen />,
-    services: <ServicesAdminScreen />,
-    barbers: <BarbersAdminScreen />,
-    plan: <PlanClientsScreen session={session} />,
-    clients: <ClientsDashboard session={session} />,
+    services: <ServicesAdminScreen onBack={goBack} />,
+    barbers: <BarbersAdminScreen onBack={goBack} />,
+    plan: <PlanClientsScreen session={session} onBack={goBack} />,
+    clients: <ClientsDashboard session={session} onBack={goBack} />,
   }[screen];
 
   const bottomItems = isBarber
@@ -1063,19 +1066,13 @@ function AdminShell() {
   return (
     <div className="app-shell admin-shell">
       {current}
-      <FloatingNav items={bottomItems} value={screen} onChange={changeScreen} />
+      {!isSecondary && <FloatingNav items={bottomItems} value={screen} onChange={changeScreen} />}
       {menuOpen ? (
         <div className="drawer-backdrop" onClick={() => setMenuOpen(false)}>
           <aside className="admin-drawer" onClick={(e) => e.stopPropagation()}>
             <header>
               <Logo size={44} />
-              <div>
-                <strong>{session.barberName || 'Admin'}</strong>
-                {isBarber ? <span>Barbeiro</span> : <span>Super-admin</span>}
-              </div>
-              <button className="icon-btn" type="button" onClick={() => setMenuOpen(false)} aria-label="Fechar">
-                <X size={18} />
-              </button>
+              <strong>Admin</strong>
             </header>
             <div className="drawer-section">Principal</div>
             <DrawerButton icon={LayoutDashboard} label="Dashboard" selected={screen === 'dashboard'} onClick={() => { setScreen('dashboard'); setMenuOpen(false); }} />
@@ -1109,10 +1106,15 @@ function DrawerButton({ icon: Icon, label, selected, onClick }) {
   );
 }
 
-function AdminPage({ title, action, children }) {
+function AdminPage({ title, action, children, onBack }) {
   return (
-    <main className="admin-page with-bottom-nav">
+    <main className={`admin-page ${onBack ? '' : 'with-bottom-nav'}`}>
       <header className="admin-topbar">
+        {onBack && (
+          <button className="icon-btn back-btn" type="button" onClick={onBack} aria-label="Voltar">
+            <ArrowLeft size={20} />
+          </button>
+        )}
         <h1>{title}</h1>
         {action}
       </header>
@@ -1795,7 +1797,7 @@ function WhatsappTemplateEditor({ title, value, onChange }) {
   );
 }
 
-function ServicesAdminScreen() {
+function ServicesAdminScreen({ onBack }) {
   const toast = useToast();
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1833,7 +1835,7 @@ function ServicesAdminScreen() {
   };
 
   return (
-    <AdminPage title="Serviços" action={<button className="icon-btn gold" onClick={() => setEditing({})} aria-label="Novo serviço"><Plus size={18} /></button>}>
+    <AdminPage title="Serviços" onBack={onBack} action={<button className="icon-btn gold" onClick={() => setEditing({})} aria-label="Novo serviço"><Plus size={18} /></button>}>
       {loading ? <LoadingBlock /> : (
         <div className="stack">
           {services.map((service, index) => (
@@ -1913,7 +1915,7 @@ function ServiceForm({ service, onClose, onSaved }) {
   );
 }
 
-function BarbersAdminScreen() {
+function BarbersAdminScreen({ onBack }) {
   const toast = useToast();
   const [barbers, setBarbers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1947,7 +1949,7 @@ function BarbersAdminScreen() {
   };
 
   return (
-    <AdminPage title="Barbeiros" action={<button className="icon-btn gold" onClick={() => setEditing({})} aria-label="Novo barbeiro"><Plus size={18} /></button>}>
+    <AdminPage title="Barbeiros" onBack={onBack} action={<button className="icon-btn gold" onClick={() => setEditing({})} aria-label="Novo barbeiro"><Plus size={18} /></button>}>
       {loading ? <LoadingBlock /> : (
         <div className="stack">
           {barbers.map((barber) => (
@@ -2042,7 +2044,7 @@ function BarberForm({ barber, onClose, onSaved }) {
   );
 }
 
-function PlanClientsScreen({ session }) {
+function PlanClientsScreen({ session, onBack }) {
   const toast = useToast();
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -2067,7 +2069,7 @@ function PlanClientsScreen({ session }) {
   };
 
   return (
-    <AdminPage title="Clientes Plano" action={<button className="icon-btn gold" onClick={() => setEditing({})} aria-label="Novo"><Plus size={18} /></button>}>
+    <AdminPage title="Clientes Plano" onBack={onBack} action={<button className="icon-btn gold" onClick={() => setEditing({})} aria-label="Novo"><Plus size={18} /></button>}>
       {loading ? <LoadingBlock /> : clients.length === 0 ? <EmptyState icon={CreditCard} title="Nenhum cliente plano cadastrado" subtitle="Toque em + para adicionar." /> : (
         <div className="stack">
           {clients.map((client) => (
@@ -2212,7 +2214,7 @@ function RecurringScheduleModal({ client, session, onClose }) {
   );
 }
 
-function ClientsDashboard({ session }) {
+function ClientsDashboard({ session, onBack }) {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -2226,7 +2228,7 @@ function ClientsDashboard({ session }) {
   useEffect(() => { load(); }, []);
 
   return (
-    <AdminPage title="Remarcar Clientes" action={<button className="icon-btn gold" onClick={load} aria-label="Atualizar"><RefreshCw size={18} /></button>}>
+    <AdminPage title="Remarcar Clientes" onBack={onBack} action={<button className="icon-btn gold" onClick={load} aria-label="Atualizar"><RefreshCw size={18} /></button>}>
       {loading ? <LoadingBlock /> : clients.length === 0 ? (
         <div className="remarcar-empty">
           <div className="remarcar-empty-icon">

@@ -506,6 +506,11 @@ button:disabled {
   font-size: 22px;
 }
 
+.back-btn {
+  flex-shrink: 0;
+  margin-right: -4px;
+}
+
 .lookup-row,
 .filters-row,
 .row-actions {
@@ -1639,8 +1644,8 @@ textarea:focus {
 }
 
 .admin-drawer header {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
+  display: flex;
+  flex-direction: row;
   gap: 12px;
   align-items: center;
   padding: 20px;
@@ -1648,14 +1653,10 @@ textarea:focus {
   border-bottom: 1px solid #222222;
 }
 
-.admin-drawer header div {
-  display: flex;
-  flex-direction: column;
-}
-
-.admin-drawer header span {
-  color: #6b7280;
-  font-size: 12px;
+.admin-drawer header strong {
+  font-size: 17px;
+  font-weight: 700;
+  color: #f0ede8;
 }
 
 .drawer-section {
@@ -1667,6 +1668,9 @@ textarea:focus {
 }
 
 .drawer-button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   min-height: 44px;
   margin: 2px 8px;
   padding: 0 12px;
