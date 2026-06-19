@@ -1378,7 +1378,7 @@ function AgendaScreen({ session }) {
   const [loading, setLoading] = useState(true);
   const [manualSlot, setManualSlot] = useState(null);
   const [showTimePicker, setShowTimePicker] = useState(false);
-  const dateRef = useRef(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const loadBarbers = async () => {
     let query = supabase.from('barbers').select('id,name,phone,image_url,avatar_url').order('name');
@@ -1510,20 +1510,9 @@ function AgendaScreen({ session }) {
     <AdminPage title="Agendamentos">
       <div className="finance-filter-top">
         <span className="agenda-period-label">Dia</span>
-        <button
-          className="finance-date-btn"
-          type="button"
-          onClick={() => dateRef.current?.showPicker?.()}
-        >
+        <button className="finance-date-btn" type="button" onClick={() => setShowDatePicker(true)}>
           <span>{formatDateDisplay(date)}</span>
           <CalendarDays size={18} />
-          <input
-            ref={dateRef}
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="finance-date-hidden"
-          />
         </button>
       </div>
 
@@ -1609,6 +1598,9 @@ function AgendaScreen({ session }) {
           onCancel={() => setShowTimePicker(false)}
         />
       )}
+      {showDatePicker && (
+        <CompactCalendar value={date} onChange={(d) => { setDate(d); load(); }} onClose={() => setShowDatePicker(false)} />
+      )}
       {ConfirmUI}
     </AdminPage>
   );
@@ -1623,29 +1615,79 @@ function TimePickerModal({ date, slots, onConfirm, onCancel }) {
     const m = now.getMinutes() < 30 ? '00' : '30';
     return `${h}:${m}`;
   })();
-  const [time, setTime] = useState(defaultTime);
+  const [hh, setHh] = useState(defaultTime.slice(0, 2));
+  const [mm, setMm] = useState(defaultTime.slice(3, 5));
   const d = new Date(`${date}T00:00:00`);
   const dateLabel = d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' });
+  const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
   return (
-    <div className="modal-backdrop" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onCancel}>
-      <div className="phone-lookup-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-backdrop" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={onCancel}>
+      <div className="compact-time-modal" onClick={(e) => e.stopPropagation()}>
         <div className="phone-lookup-title-row">
           <span className="phone-lookup-icon"><Clock size={20} /></span>
           <strong>Horário extra para este dia</strong>
         </div>
         <p className="phone-lookup-label">{dateLabel}</p>
-        <div className="phone-lookup-input-row">
-          <Clock size={18} className="phone-lookup-phone-icon" />
-          <input
-            type="time"
-            value={time}
-            onChange={(e) => setTime(e.target.value)}
-            className="phone-lookup-input"
-          />
+        <div className="time-selects">
+          <select className="time-select" value={hh} onChange={(e) => setHh(e.target.value)}>
+            {hours.map((h) => <option key={h} value={h}>{h}</option>)}
+          </select>
+          <span className="time-colon">:</span>
+          <select className="time-select" value={mm} onChange={(e) => setMm(e.target.value)}>
+            <option value="00">00</option>
+            <option value="30">30</option>
+          </select>
         </div>
         <div className="phone-lookup-actions">
           <button className="outline-btn" type="button" onClick={onCancel}>Cancelar</button>
-          <button className="primary-btn" type="button" onClick={() => onConfirm(time)}>OK</button>
+          <button className="primary-btn" type="button" onClick={() => onConfirm(`${hh}:${mm}`)}>OK</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CompactCalendar({ value, onChange, onClose }) {
+  const init = value ? new Date(value + 'T00:00:00') : new Date();
+  const [yr, setYr] = useState(init.getFullYear());
+  const [mo, setMo] = useState(init.getMonth());
+  const today = dateKey(new Date());
+  const daysInMonth = new Date(yr, mo + 1, 0).getDate();
+  const firstDow = new Date(yr, mo, 1).getDay();
+  const rawMonth = new Date(yr, mo, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  const monthLabel = rawMonth.charAt(0).toUpperCase() + rawMonth.slice(1);
+  const prevMonth = () => { if (mo === 0) { setMo(11); setYr((y) => y - 1); } else setMo((m) => m - 1); };
+  const nextMonth = () => { if (mo === 11) { setMo(0); setYr((y) => y + 1); } else setMo((m) => m + 1); };
+  const cells = [];
+  for (let i = 0; i < firstDow; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  const pick = (day) => {
+    const key = `${yr}-${String(mo + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    onChange(key);
+    onClose();
+  };
+  return (
+    <div className="modal-backdrop" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={onClose}>
+      <div className="compact-calendar" onClick={(e) => e.stopPropagation()}>
+        <div className="cc-nav">
+          <button className="icon-btn" type="button" onClick={prevMonth}><ChevronLeft size={20} /></button>
+          <span className="cc-month">{monthLabel}</span>
+          <button className="icon-btn" type="button" onClick={nextMonth}><ChevronRight size={20} /></button>
+        </div>
+        <div className="cc-grid">
+          {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, i) => <span key={i} className="cc-weekday">{d}</span>)}
+          {cells.map((day, i) => {
+            if (!day) return <span key={`x${i}`} />;
+            const key = `${yr}-${String(mo + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            return (
+              <button key={key} type="button"
+                className={cx('cc-day', key === value && 'selected', key === today && key !== value && 'today')}
+                onClick={() => pick(day)}>{day}</button>
+            );
+          })}
+        </div>
+        <div className="phone-lookup-actions" style={{ padding: '8px 0 4px' }}>
+          <button className="outline-btn" type="button" onClick={onClose}>Cancelar</button>
         </div>
       </div>
     </div>
@@ -1696,7 +1738,7 @@ function FinanceScreen({ session }) {
   const [barberId, setBarberId] = useState(session.barberId || '');
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState({ total: 0, planTotal: 0, planCount: 0, rows: [] });
-  const dateRef = useRef(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const loadBarbers = async () => {
     const { data: rows } = await supabase.from('barbers').select('id,name').order('name');
@@ -1766,20 +1808,9 @@ function FinanceScreen({ session }) {
         <select className="finance-period" value={period} onChange={(e) => setPeriod(e.target.value)}>
           {periodOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
-        <button
-          className="finance-date-btn"
-          type="button"
-          onClick={() => dateRef.current?.showPicker?.()}
-        >
+        <button className="finance-date-btn" type="button" onClick={() => setShowDatePicker(true)}>
           <span>{formatDateDisplay(selected)}</span>
           <CalendarDays size={18} />
-          <input
-            ref={dateRef}
-            type="date"
-            value={selected}
-            onChange={(e) => setSelected(e.target.value)}
-            className="finance-date-hidden"
-          />
         </button>
       </div>
       {!session.barberId && (
@@ -1831,6 +1862,9 @@ function FinanceScreen({ session }) {
             </div>
           </div>
         </div>
+      )}
+      {showDatePicker && (
+        <CompactCalendar value={selected} onChange={(d) => { setSelected(d); }} onClose={() => setShowDatePicker(false)} />
       )}
     </AdminPage>
   );

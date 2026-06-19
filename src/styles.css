@@ -1,5 +1,7 @@
 :root {
-  color-scheme: dark;
+  /* light dark = "a página gerencia suas próprias cores" — impede Samsung
+     Browser e outros de aplicar dark mode automático por cima do layout. */
+  color-scheme: light dark;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: #080808;
   color: #f0ede8;
@@ -9,6 +11,8 @@
 
 * {
   box-sizing: border-box;
+  /* Impede Samsung Browser de recolorir elementos individualmente */
+  forced-color-adjust: none;
 }
 
 html,
@@ -16,6 +20,7 @@ body,
 #root {
   min-height: 100%;
   margin: 0;
+  background: #080808;
 }
 
 body {
@@ -539,6 +544,91 @@ button:disabled {
   font-size: 13px;
   color: #9ca3af;
   margin-top: 2px;
+}
+
+/* ── Calendário compacto (bottom sheet) ───────────────────────── */
+.compact-calendar {
+  background: #111111;
+  border-radius: 16px 16px 0 0;
+  width: 100%;
+  max-width: 560px;
+  padding: 16px 16px 8px;
+  border-top: 1px solid #222;
+}
+.cc-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.cc-month {
+  font-size: 15px;
+  font-weight: 600;
+  color: #f0ede8;
+}
+.cc-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.cc-weekday {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #6b7280;
+  padding: 4px 0 6px;
+}
+.cc-day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 14px;
+  color: #f0ede8;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+}
+.cc-day.today  { color: #f5c200; font-weight: 700; }
+.cc-day.selected { background: #f5c200; color: #080808; font-weight: 700; }
+
+/* ── Seletor de hora compacto ─────────────────────────────────── */
+.compact-time-modal {
+  background: #111111;
+  border-radius: 16px 16px 0 0;
+  width: 100%;
+  max-width: 560px;
+  padding: 20px 20px 8px;
+  border-top: 1px solid #222;
+}
+.time-selects {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 0 8px;
+}
+.time-select {
+  font-size: 36px;
+  font-weight: 700;
+  color: #f0ede8;
+  background: #1c1c1c;
+  border: 1px solid #333;
+  border-radius: 10px;
+  padding: 10px 6px;
+  width: 90px;
+  text-align: center;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+.time-colon {
+  font-size: 36px;
+  font-weight: 700;
+  color: #f5c200;
+  line-height: 1;
 }
 
 /* ── Card de histórico ────────────────────────────────────────── */
