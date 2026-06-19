@@ -2246,20 +2246,9 @@ function PlanClientsScreen({ session, onBack }) {
 
   const load = async () => {
     setLoading(true);
-    let data, error;
-    if (session.barberId) {
-      // Barber-admin: buscar apenas clientes plano com recorrente vinculado a este barbeiro
-      const { data: schedules, error: schedErr } = await supabase
-        .from('recurring_schedules')
-        .select('plan_client_id')
-        .eq('barber_id', session.barberId);
-      if (schedErr) { toast(`Erro: ${schedErr.message}`, 'error'); setLoading(false); return; }
-      const ids = [...new Set((schedules ?? []).map((s) => s.plan_client_id).filter(Boolean))];
-      if (ids.length === 0) { setClients([]); setLoading(false); return; }
-      ({ data, error } = await supabase.from('plan_clients').select('*').in('id', ids).order('name'));
-    } else {
-      ({ data, error } = await supabase.from('plan_clients').select('*').order('name'));
-    }
+    let query = supabase.from('plan_clients').select('*').order('name');
+    if (session.barberId) query = query.eq('barber_id', session.barberId);
+    const { data, error } = await query;
     if (error) toast(`Erro: ${error.message}`, 'error');
     setClients(data ?? []);
     setLoading(false);
@@ -2294,15 +2283,17 @@ function PlanClientsScreen({ session, onBack }) {
           ))}
         </div>
       )}
-      {editing ? <PlanClientForm client={editing.id ? editing : null} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} /> : null}
+      {editing ? <PlanClientForm client={editing.id ? editing : null} session={session} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} /> : null}
       {recurring ? <RecurringScheduleModal client={recurring} session={session} onClose={() => setRecurring(null)} /> : null}
       {ConfirmUI}
     </AdminPage>
   );
 }
 
-function PlanClientForm({ client, onClose, onSaved }) {
+function PlanClientForm({ client, session, onClose, onSaved }) {
   const toast = useToast();
+  const isSuperAdmin = !session?.barberId;
+  const [barbers, setBarbers] = useState([]);
   const [form, setForm] = useState({
     name: client?.name || '',
     phone: formatPhone(client?.phone || ''),
@@ -2311,8 +2302,15 @@ function PlanClientForm({ client, onClose, onSaved }) {
     payment_method: client?.payment_method || '',
     due_day: client?.due_day || '',
     notes: client?.notes || '',
+    barber_id: client?.barber_id || (isSuperAdmin ? '' : (session?.barberId || '')),
   });
   const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
+
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    supabase.from('barbers').select('id,name').order('name').then(({ data }) => setBarbers(data ?? []));
+  }, [isSuperAdmin]);
+
   const save = async () => {
     const phone = normalizePhone(form.phone);
     if (!form.name.trim() || phone.length < 10) return toast('Nome e telefone são obrigatórios.', 'warn');
@@ -2324,6 +2322,7 @@ function PlanClientForm({ client, onClose, onSaved }) {
       payment_method: form.payment_method || null,
       due_day: form.due_day ? Number(form.due_day) : null,
       notes: form.notes.trim() || null,
+      barber_id: form.barber_id || null,
       updated_at: new Date().toISOString(),
     };
     const { error } = client?.id
@@ -2345,6 +2344,15 @@ function PlanClientForm({ client, onClose, onSaved }) {
         <label className="field"><span>Forma de pagamento</span><select value={form.payment_method} onChange={(e) => update('payment_method', e.target.value)}><option value="">Selecionar</option><option>PIX</option><option>Dinheiro</option><option>Cartão de crédito</option><option>Cartão de débito</option><option>Outro</option></select></label>
         <label className="field"><span>Dia de vencimento</span><input value={form.due_day} type="number" min="1" max="31" onChange={(e) => update('due_day', e.target.value)} /></label>
         <label className="field"><span>Observações</span><textarea rows={2} value={form.notes} onChange={(e) => update('notes', e.target.value)} /></label>
+        {isSuperAdmin && (
+          <label className="field">
+            <span>Barbeiro responsável</span>
+            <select value={form.barber_id} onChange={(e) => update('barber_id', e.target.value)}>
+              <option value="">Sem vínculo</option>
+              {barbers.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+          </label>
+        )}
         <button className="primary-btn" onClick={save}>Salvar</button>
       </div>
     </Modal>
