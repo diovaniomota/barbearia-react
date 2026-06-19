@@ -541,6 +541,35 @@ button:disabled {
   margin-top: 2px;
 }
 
+/* ── Card de histórico ────────────────────────────────────────── */
+.history-card { display: flex; flex-direction: column; gap: 0; }
+.history-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.history-card-top strong { font-size: 15px; font-weight: 700; }
+.history-card-service {
+  font-size: 13px;
+  color: rgba(240, 237, 232, 0.5);
+  margin-top: 2px;
+  line-height: 1.4;
+  word-break: break-word;
+}
+.history-card-details {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.history-card-details p {
+  margin: 0;
+  font-size: 14px;
+  color: #f0ede8;
+}
+.history-card .danger-btn { margin-top: 14px; }
+
 /* ── Modal busca telefone ─────────────────────────────────────── */
 .phone-lookup-modal {
   background: #111111;

@@ -319,7 +319,6 @@ function CustomerHistory() {
   const [phone, setPhone] = useState('');
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [expanded, setExpanded] = useState(null);
   const [showModal, setShowModal] = useState(true);
 
   const doLoad = async (rawPhone) => {
@@ -400,30 +399,25 @@ function CustomerHistory() {
         <EmptyState icon={Clock} title="Nenhum agendamento" subtitle="Busque pelo telefone usado no agendamento." />
       ) : (
         <div className="stack">
-          {bookings.map((booking, index) => {
-            const open = expanded === index;
+          {bookings.map((booking) => {
             const cancelled = String(booking.status).includes('cancel');
             return (
-              <article className="admin-card" key={booking.key}>
-                <button className="card-click" type="button" onClick={() => setExpanded(open ? null : index)}>
-                  <div>
-                    <strong>{formatDateTime(booking.dateTime)}</strong>
-                    <span className="muted">{booking.barberName || 'Barbeiro'} · {booking.services.join(', ')}</span>
-                  </div>
+              <article className="admin-card history-card" key={booking.key}>
+                <div className="history-card-top">
+                  <strong>{formatDateTime(booking.dateTime)}</strong>
                   <span className={cx('status-pill', cancelled ? 'red' : 'gold')}>{booking.status || 'scheduled'}</span>
-                </button>
-                {open ? (
-                  <div className="card-details">
-                    <p>{booking.customerName || 'Cliente'}</p>
-                    <p>{formatPhone(booking.phone)}</p>
-                    <p>Total: {money(booking.total)}</p>
-                    {!cancelled ? (
-                      <button className="danger-btn" type="button" onClick={() => cancelBooking(booking)}>
-                        Cancelar
-                      </button>
-                    ) : null}
-                  </div>
-                ) : null}
+                </div>
+                <span className="history-card-service">{booking.barberName || 'Barbeiro'} · {booking.services.join(', ')}</span>
+                <div className="history-card-details">
+                  <p>{booking.customerName || 'Cliente'}</p>
+                  <p>{formatPhone(booking.phone)}</p>
+                  <p>Total: {money(booking.total)}</p>
+                </div>
+                {!cancelled && (
+                  <button className="danger-btn" type="button" onClick={() => cancelBooking(booking)}>
+                    Cancelar agendamento
+                  </button>
+                )}
               </article>
             );
           })}
