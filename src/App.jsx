@@ -1124,7 +1124,10 @@ function AdminShell() {
           <aside className="admin-drawer" onClick={(e) => e.stopPropagation()}>
             <header>
               <Logo size={44} />
-              <strong>Admin</strong>
+              <div className="drawer-user-info">
+                <strong>{isBarber ? session.barberName : 'Admin'}</strong>
+                {isBarber && <span className="drawer-user-role">Barbeiro</span>}
+              </div>
             </header>
             <div className="drawer-section">Principal</div>
             <DrawerButton icon={LayoutDashboard} label="Dashboard" selected={screen === 'dashboard'} onClick={() => { setScreen('dashboard'); setMenuOpen(false); }} />
@@ -1241,7 +1244,7 @@ function DashboardScreen({ session, setScreen }) {
     .join(', ');
 
   return (
-    <AdminPage title="Admin">
+    <AdminPage title={session.barberName || 'Admin'}>
       {loading ? <LoadingBlock /> : (
         <div className="dashboard-grid">
           <MetricCard icon={CalendarDays} label="Realizados hoje" value={stats.today} color="gold" />
