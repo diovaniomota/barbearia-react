@@ -24,11 +24,13 @@ import {
   Menu,
   MessageCircle,
   Phone,
+  PhoneForwarded,
   Plus,
   RefreshCw,
   Repeat,
   Save,
   Scissors,
+  Search,
   Send,
   Shield,
   Trash2,
@@ -313,19 +315,20 @@ function ClientHome({ onBook }) {
 
 function CustomerHistory() {
   const toast = useToast();
-  const [phone, setPhone] = useState(() => formatPhone(localStorage.getItem('client_phone_raw') || ''));
+  const [phone, setPhone] = useState('');
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(null);
+  const [showModal, setShowModal] = useState(true);
 
-  const load = async () => {
-    const digits = normalizePhone(phone);
+  const doLoad = async (rawPhone) => {
+    const digits = normalizePhone(rawPhone);
     if (digits.length < 10) {
       toast('Informe um telefone válido.', 'warn');
-      return;
+      return false;
     }
     setLoading(true);
-    const candidates = [...new Set([digits, formatPhone(digits), phone.trim()].filter(Boolean))];
+    const candidates = [...new Set([digits, formatPhone(digits), rawPhone.trim()].filter(Boolean))];
     const rows = [];
     const seen = new Set();
     for (const candidate of candidates) {
@@ -338,18 +341,16 @@ function CustomerHistory() {
       if (error) {
         setLoading(false);
         toast(`Erro ao buscar histórico: ${error.message}`, 'error');
-        return;
+        return false;
       }
       for (const row of data ?? []) {
-        if (!seen.has(row.id)) {
-          seen.add(row.id);
-          rows.push(row);
-        }
+        if (!seen.has(row.id)) { seen.add(row.id); rows.push(row); }
       }
     }
+    setPhone(rawPhone);
     setBookings(groupBookingRows(rows));
-    localStorage.setItem('client_phone_raw', digits);
     setLoading(false);
+    return true;
   };
 
   const cancelBooking = async (booking) => {
@@ -364,7 +365,7 @@ function CustomerHistory() {
         });
         if (error) throw error;
       }
-      await load();
+      await doLoad(phone);
       toast('Agendamento cancelado.', 'success');
     } catch (error) {
       setLoading(false);
@@ -372,21 +373,24 @@ function CustomerHistory() {
     }
   };
 
+  const customerName = bookings[0]?.customerName || null;
+
   return (
     <main className="page with-bottom-nav">
-      <header className="simple-header">
-        <Logo size={82} />
-        <h1>Histórico</h1>
+      <header className="history-header">
+        <div className="history-header-row">
+          <h1>Histórico</h1>
+          <button className="icon-btn gold" type="button" onClick={() => setShowModal(true)} aria-label="Trocar telefone">
+            <PhoneForwarded size={20} />
+          </button>
+        </div>
+        {phone ? (
+          <span className="history-subtitle">
+            {customerName ? `${customerName} · ` : ''}{formatPhone(phone)}
+            {bookings.length > 0 ? ` · ${bookings.length} agendamento${bookings.length !== 1 ? 's' : ''}` : ''}
+          </span>
+        ) : null}
       </header>
-      <div className="lookup-row">
-        <label className="field grow">
-          <span>Telefone</span>
-          <input value={phone} inputMode="tel" onChange={(e) => setPhone(maskPhoneInput(e.target.value))} placeholder="(00) 00000-0000" />
-        </label>
-        <button className="icon-btn gold" type="button" onClick={load} aria-label="Buscar">
-          <RefreshCw size={20} />
-        </button>
-      </div>
 
       {loading ? (
         <LoadingBlock />
@@ -423,7 +427,52 @@ function CustomerHistory() {
           })}
         </div>
       )}
+
+      {showModal && (
+        <PhoneLookupModal
+          initial={phone}
+          onConfirm={async (p) => { const ok = await doLoad(p); if (ok) setShowModal(false); }}
+          onCancel={() => setShowModal(false)}
+        />
+      )}
     </main>
+  );
+}
+
+function PhoneLookupModal({ initial, onConfirm, onCancel }) {
+  const [value, setValue] = useState(initial ? formatPhone(initial) : '');
+  const inputRef = useRef(null);
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  const submit = () => onConfirm(value);
+
+  return (
+    <div className="modal-backdrop" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onCancel}>
+      <div className="phone-lookup-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="phone-lookup-title-row">
+          <span className="phone-lookup-icon"><Search size={20} /></span>
+          <strong>Buscar histórico</strong>
+        </div>
+        <p className="phone-lookup-label">Celular usado no agendamento</p>
+        <div className="phone-lookup-input-row">
+          <Phone size={18} className="phone-lookup-phone-icon" />
+          <input
+            ref={inputRef}
+            type="tel"
+            inputMode="tel"
+            value={value}
+            onChange={(e) => setValue(maskPhoneInput(e.target.value))}
+            onKeyDown={(e) => e.key === 'Enter' && submit()}
+            placeholder="(00) 00000-0000"
+            className="phone-lookup-input"
+          />
+        </div>
+        <div className="phone-lookup-actions">
+          <button className="outline-btn" type="button" onClick={onCancel}>Agora não</button>
+          <button className="primary-btn" type="button" onClick={submit}>Consultar</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1417,6 +1466,14 @@ function AgendaScreen({ session }) {
     load();
   };
 
+  const blockDay = async () => {
+    if (!window.confirm('Bloquear o dia inteiro para este barbeiro?')) return;
+    const { error } = await supabase.from('barber_blocked_days').insert({ barber_id: barberId, date });
+    if (error) toast(`Erro ao bloquear dia: ${error.message}`, 'error');
+    else toast('Dia bloqueado.', 'success');
+    load();
+  };
+
   const formatDateDisplay = (dateStr) => {
     const d = new Date(`${dateStr}T00:00:00`);
     return d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -1469,6 +1526,17 @@ function AgendaScreen({ session }) {
             <span className="slot-dot admin" />Encaixe
             <span className="slot-dot blocked" />Bloqueado
           </div>
+          <div className="agenda-action-bar">
+            <button className="agenda-action-btn" onClick={() => {
+              const freeSlot = slots.find((s) => s.state === 'free');
+              if (freeSlot) setManualSlot({ date: new Date(`${date}T00:00:00`), time: freeSlot.label, barberId });
+            }}>
+              <CalendarDays size={15} />Adicionar horário
+            </button>
+            <button className="agenda-action-btn red" onClick={blockDay}>
+              <Lock size={15} />Bloquear dia
+            </button>
+          </div>
           {selectedBarber && (
             <p className="agenda-subtitle">
               {selectedBarber.name} • {new Date(`${date}T00:00:00`).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' })}
@@ -1481,21 +1549,21 @@ function AgendaScreen({ session }) {
                 : slots.map((slot) => (
                   <article className={cx('slot-card', slot.state)} key={slot.label}>
                     <time>{slot.label}</time>
-                    <div>
+                    <div className="slot-info">
                       <strong>{slot.state === 'free' ? 'Livre' : slot.state === 'blocked' ? 'Bloqueado' : slot.name || 'Cliente'}</strong>
-                      {(slot.state === 'admin') && <em className="slot-badge">ENCAIXE</em>}
-                      {(slot.state === 'newClient') && <em className="slot-badge blue">NOVO</em>}
                       {!['free', 'blocked'].includes(slot.state) && <span>{slot.service || formatPhone(slot.phone)}</span>}
                     </div>
-                    <div className="slot-actions">
-                      {slot.state === 'free' ? (
-                        <>
+                    <div className="slot-right">
+                      {slot.state === 'admin' && <span className="slot-label encaixe">ENCAIXE</span>}
+                      {slot.state === 'newClient' && <span className="slot-label novo">NOVO</span>}
+                      {slot.state === 'free' && (
+                        <div className="slot-actions">
                           <button className="icon-btn" onClick={() => setManualSlot({ date: new Date(`${date}T00:00:00`), time: slot.label, barberId })} aria-label="Agendar"><Plus size={18} /></button>
                           <button className="icon-btn red" onClick={() => blockSlot(slot)} aria-label="Bloquear"><Lock size={18} /></button>
-                        </>
-                      ) : null}
-                      {slot.state === 'blocked' ? <button className="icon-btn gold" onClick={() => unblockSlot(slot)} aria-label="Desbloquear"><Shield size={18} /></button> : null}
-                      {['client', 'newClient', 'admin'].includes(slot.state) ? <button className="icon-btn red" onClick={() => cancelSlot(slot)} aria-label="Cancelar"><X size={18} /></button> : null}
+                        </div>
+                      )}
+                      {slot.state === 'blocked' && <button className="icon-btn red" onClick={() => unblockSlot(slot)} aria-label="Desbloquear"><Lock size={18} /></button>}
+                      {['client', 'newClient', 'admin'].includes(slot.state) && <button className="icon-btn red" onClick={() => cancelSlot(slot)} aria-label="Cancelar"><X size={18} /></button>}
                     </div>
                   </article>
                 ))

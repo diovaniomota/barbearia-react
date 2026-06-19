@@ -519,6 +519,100 @@ button:disabled {
   gap: 10px;
 }
 
+/* ── Histórico header ─────────────────────────────────────────── */
+.history-header {
+  padding: 0 0 12px;
+}
+.history-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.history-header-row h1 {
+  margin: 0;
+  font-size: 22px;
+}
+.history-subtitle {
+  display: block;
+  font-size: 13px;
+  color: #9ca3af;
+  margin-top: 2px;
+}
+
+/* ── Modal busca telefone ─────────────────────────────────────── */
+.phone-lookup-modal {
+  background: #111111;
+  border: 1px solid #222222;
+  border-radius: 14px;
+  padding: 22px 20px 20px;
+  width: min(88vw, 360px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.phone-lookup-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.phone-lookup-icon {
+  width: 42px;
+  height: 42px;
+  background: rgba(245,194,0,0.14);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f5c200;
+  flex-shrink: 0;
+}
+.phone-lookup-title-row strong {
+  font-size: 18px;
+  font-weight: 900;
+  color: #f0ede8;
+}
+.phone-lookup-label {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #9ca3af;
+}
+.phone-lookup-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #080808;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 0 12px;
+}
+.phone-lookup-input-row:focus-within {
+  border-color: #f5c200;
+}
+.phone-lookup-phone-icon {
+  color: #f5c200;
+  flex-shrink: 0;
+}
+.phone-lookup-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #f0ede8;
+  font-size: 16px;
+  padding: 12px 0;
+  font-family: inherit;
+}
+.phone-lookup-input::placeholder { color: #555; }
+.phone-lookup-actions {
+  display: flex;
+  gap: 10px;
+}
+.phone-lookup-actions .outline-btn,
+.phone-lookup-actions .primary-btn {
+  flex: 1;
+}
+
 .filters-row {
   flex-wrap: wrap;
   margin-bottom: 14px;
@@ -1777,77 +1871,113 @@ textarea:focus {
 .slot-card {
   min-height: 64px;
   display: grid;
-  grid-template-columns: 62px 1fr auto;
+  grid-template-columns: 58px 1fr auto;
   align-items: center;
-  gap: 12px;
-  border-radius: 12px;
-  border: 1px solid #252830;
-  background: #111111;
+  gap: 10px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: #1e2025;
   padding: 10px 12px;
 }
 
 .slot-card time {
   color: #f5c200;
   font-weight: 900;
+  font-size: 15px;
 }
 
-.slot-card > div:nth-child(2) {
+.slot-info {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
 
-.slot-card span {
-  color: #6b7280;
-  font-size: 12px;
+.slot-info strong {
+  font-size: 14px;
+  font-weight: 700;
+  color: #f0ede8;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.slot-info span {
+  color: #9ca3af;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.slot-card.client {
-  border-color: rgba(180, 180, 180, 0.28);
-  background: rgba(180, 180, 180, 0.08);
+.slot-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
-.slot-card.newClient {
-  border-color: rgba(105, 183, 255, 0.44);
-  background: rgba(105, 183, 255, 0.1);
-}
-
-.slot-card.admin {
-  border-color: rgba(168, 85, 247, 0.45);
-  background: rgba(168, 85, 247, 0.1);
-}
-
-.slot-card.blocked {
-  border-color: rgba(240, 102, 102, 0.42);
-  background: rgba(240, 102, 102, 0.1);
-}
-
-.slot-badge {
-  display: inline-block;
-  font-style: normal;
-  font-size: 10px;
+/* Labels NOVO / ENCAIXE — texto simples como no Flutter */
+.slot-label {
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.5px;
-  color: #a855f7;
-  background: rgba(168, 85, 247, 0.2);
-  border-radius: 4px;
-  padding: 1px 5px;
-  align-self: flex-start;
 }
-
-.slot-badge.blue {
-  color: #69b7ff;
-  background: rgba(105, 183, 255, 0.2);
-}
+.slot-label.novo    { color: #69b7ff; }
+.slot-label.encaixe { color: #d0a0ff; }
 
 .slot-actions {
   display: flex;
-  gap: 6px;
+  gap: 4px;
 }
+
+/* Backgrounds sólidos — igual ao Flutter */
+.slot-card.free {
+  background: #1e2025;
+  border-color: #252830;
+}
+.slot-card.client {
+  background: rgba(210, 210, 210, 0.10);
+  border-color: rgba(210, 210, 210, 0.18);
+}
+.slot-card.newClient {
+  background: rgba(60, 130, 220, 0.22);
+  border-color: rgba(60, 130, 220, 0.35);
+}
+.slot-card.admin {
+  background: rgba(150, 60, 230, 0.22);
+  border-color: rgba(150, 60, 230, 0.38);
+}
+.slot-card.blocked {
+  background: rgba(220, 70, 70, 0.22);
+  border-color: rgba(220, 70, 70, 0.38);
+}
+
+/* Barra de ações (Adicionar horário / Bloquear dia) */
+.agenda-action-bar {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0 2px;
+  flex-wrap: wrap;
+}
+.agenda-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #f5c200;
+  cursor: pointer;
+}
+.agenda-action-btn:hover { background: rgba(245,194,0,0.1); }
+.agenda-action-btn.red { color: #f06666; }
+.agenda-action-btn.red:hover { background: rgba(240,102,102,0.1); }
 
 .status-line {
   display: grid;
@@ -2207,12 +2337,7 @@ textarea:focus {
   }
 
   .slot-card {
-    grid-template-columns: 52px 1fr;
-  }
-
-  .slot-actions {
-    grid-column: 1 / -1;
-    justify-content: flex-end;
+    grid-template-columns: 52px 1fr auto;
   }
 }
 

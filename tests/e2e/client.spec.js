@@ -1,5 +1,27 @@
 import { expect, test } from '@playwright/test';
 
+test('histórico — modal abre automaticamente com buscar histórico e botões', async ({ page }) => {
+  await page.goto('/agendamentocliente');
+  await page.locator('.nav-item', { hasText: 'Histórico' }).click();
+  await page.waitForTimeout(800);
+
+  // Modal deve aparecer automaticamente
+  await expect(page.locator('.phone-lookup-modal')).toBeVisible();
+  await expect(page.locator('text=Buscar histórico')).toBeVisible();
+  await expect(page.locator('text=Celular usado no agendamento')).toBeVisible();
+  await expect(page.locator('.phone-lookup-input')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Agora não' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Consultar' })).toBeVisible();
+
+  // Fechar com "Agora não"
+  await page.getByRole('button', { name: 'Agora não' }).click();
+  await expect(page.locator('.phone-lookup-modal')).toHaveCount(0);
+
+  // Botão de telefone reabre o modal
+  await page.locator('button[aria-label="Trocar telefone"]').click();
+  await expect(page.locator('.phone-lookup-modal')).toBeVisible();
+});
+
 test('client entry, home layout, and booking stepper match the Flutter flow', async ({ page }) => {
   await page.goto('/');
 
