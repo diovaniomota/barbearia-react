@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -315,6 +315,7 @@ function ClientHome({ onBook }) {
 
 function CustomerHistory() {
   const toast = useToast();
+  const { confirm, ConfirmUI } = useConfirm();
   const [phone, setPhone] = useState('');
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -354,7 +355,8 @@ function CustomerHistory() {
   };
 
   const cancelBooking = async (booking) => {
-    if (!window.confirm('Cancelar agendamento?')) return;
+    const ok = await confirm('Cancelar este agendamento?', { title: 'Cancelar agendamento', confirmLabel: 'Sim, cancelar', cancelLabel: 'Não', confirmClass: 'danger-btn' });
+    if (!ok) return;
     setLoading(true);
     try {
       for (const id of booking.ids) {
@@ -435,6 +437,7 @@ function CustomerHistory() {
           onCancel={() => setShowModal(false)}
         />
       )}
+      {ConfirmUI}
     </main>
   );
 }
@@ -526,7 +529,7 @@ function LoadingBlock() {
 
 function BookingScreen({ initialService, onClose, adminContext = null, fixedSlot = null, onSaved }) {
   const toast = useToast();
-  const [step, setStep] = useState(fixedSlot ? 3 : 0);
+  const [step, setStep] = useState(0);
   const [services, setServices] = useState([]);
   const [selectedServices, setSelectedServices] = useState(initialService ? [initialService] : []);
   const [barbers, setBarbers] = useState([]);
@@ -608,7 +611,8 @@ function BookingScreen({ initialService, onClose, adminContext = null, fixedSlot
     if (step === 2 && !selectedBarberId) return toast('Selecione um barbeiro disponível.', 'warn');
     if (step === 3 && !selectedTime) return toast('Selecione um horário.', 'warn');
     if (step < 4) {
-      setStep(step + 1);
+      // adminContext com fixedSlot: data/barbeiro/horário já fixos, pular direto para dados do cliente
+      setStep(fixedSlot && step === 0 ? 4 : step + 1);
       return;
     }
     await saveAppointment();
@@ -682,7 +686,12 @@ function BookingScreen({ initialService, onClose, adminContext = null, fixedSlot
       <button className="primary-btn compact" type="button" disabled={saving} onClick={validateNext}>
         {saving ? 'Salvando...' : step === 4 ? 'Confirmar' : 'Continuar'}
       </button>
-      <button className="ghost-btn" type="button" onClick={() => (step === 0 ? onClose?.() : setStep((s) => Math.max(0, s - 1)))}>
+      <button className="ghost-btn" type="button" onClick={() => {
+        if (step === 0) { onClose?.(); return; }
+        // adminContext+fixedSlot: ao voltar do step 4, vai para step 0 (serviços)
+        if (fixedSlot && step === 4) { setStep(0); return; }
+        setStep((s) => Math.max(0, s - 1));
+      }}>
         Voltar
       </button>
     </div>
@@ -694,7 +703,7 @@ function BookingScreen({ initialService, onClose, adminContext = null, fixedSlot
         <button className="icon-btn" type="button" onClick={onClose} aria-label="Voltar">
           <ArrowLeft size={20} />
         </button>
-        <h2>{adminContext ? 'Encaixe manual' : 'Agendar Horário'}</h2>
+        <h2>{adminContext && fixedSlot ? `Agendar • ${fixedSlot.time}` : adminContext ? 'Encaixe manual' : 'Agendar Horário'}</h2>
       </header>
       {loading ? (
         <LoadingPage />
@@ -1364,12 +1373,14 @@ function ClientLine({ client }) {
 
 function AgendaScreen({ session }) {
   const toast = useToast();
+  const { confirm, ConfirmUI } = useConfirm();
   const [date, setDate] = useState(dateKey(new Date()));
   const [barbers, setBarbers] = useState([]);
   const [barberId, setBarberId] = useState(session.barberId || '');
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [manualSlot, setManualSlot] = useState(null);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const dateRef = useRef(null);
 
   const loadBarbers = async () => {
@@ -1454,7 +1465,13 @@ function AgendaScreen({ session }) {
   };
 
   const cancelSlot = async (slot) => {
-    if (!window.confirm(`Cancelar ${slot.label}?`)) return;
+    const ok = await confirm(`Cancelar agendamento das ${slot.label}?`, {
+      title: 'Cancelar agendamento',
+      confirmLabel: 'Sim, cancelar',
+      cancelLabel: 'Não',
+      confirmClass: 'danger-btn',
+    });
+    if (!ok) return;
     const { error } = await supabase
       .from('appointments')
       .update({ status: 'cancelled' })
@@ -1467,11 +1484,22 @@ function AgendaScreen({ session }) {
   };
 
   const blockDay = async () => {
-    if (!window.confirm('Bloquear o dia inteiro para este barbeiro?')) return;
+    if (!barberId) { toast('Selecione um barbeiro primeiro.', 'warn'); return; }
+    const ok = await confirm('Bloquear o dia inteiro para este barbeiro?', {
+      title: 'Bloquear dia',
+      confirmLabel: 'Bloquear',
+      confirmClass: 'danger-btn',
+    });
+    if (!ok) return;
     const { error } = await supabase.from('barber_blocked_days').insert({ barber_id: barberId, date });
     if (error) toast(`Erro ao bloquear dia: ${error.message}`, 'error');
     else toast('Dia bloqueado.', 'success');
     load();
+  };
+
+  const openManualTimePicker = () => {
+    if (!barberId) { toast('Selecione um barbeiro primeiro.', 'warn'); return; }
+    setShowTimePicker(true);
   };
 
   const formatDateDisplay = (dateStr) => {
@@ -1527,10 +1555,7 @@ function AgendaScreen({ session }) {
             <span className="slot-dot blocked" />Bloqueado
           </div>
           <div className="agenda-action-bar">
-            <button className="agenda-action-btn" onClick={() => {
-              const freeSlot = slots.find((s) => s.state === 'free');
-              if (freeSlot) setManualSlot({ date: new Date(`${date}T00:00:00`), time: freeSlot.label, barberId });
-            }}>
+            <button className="agenda-action-btn" onClick={openManualTimePicker}>
               <CalendarDays size={15} />Adicionar horário
             </button>
             <button className="agenda-action-btn red" onClick={blockDay}>
@@ -1573,7 +1598,97 @@ function AgendaScreen({ session }) {
         </>
       )}
       {manualSlot ? <BookingScreen adminContext fixedSlot={manualSlot} onClose={() => setManualSlot(null)} onSaved={load} /> : null}
+      {showTimePicker && (
+        <TimePickerModal
+          date={date}
+          slots={slots}
+          onConfirm={(time) => {
+            setShowTimePicker(false);
+            const hh = time.slice(0, 5);
+            const occupied = slots.find((s) => s.label === hh && s.state !== 'free');
+            if (occupied) { toast(`O horário ${hh} já está na agenda.`, 'warn'); return; }
+            setManualSlot({ date: new Date(`${date}T00:00:00`), time: hh, barberId });
+          }}
+          onCancel={() => setShowTimePicker(false)}
+        />
+      )}
+      {ConfirmUI}
     </AdminPage>
+  );
+}
+
+function TimePickerModal({ date, slots, onConfirm, onCancel }) {
+  const now = new Date();
+  const defaultTime = (() => {
+    const freeSlot = (slots ?? []).find((s) => s.state === 'free');
+    if (freeSlot) return freeSlot.label;
+    const h = String(now.getHours()).padStart(2, '0');
+    const m = now.getMinutes() < 30 ? '00' : '30';
+    return `${h}:${m}`;
+  })();
+  const [time, setTime] = useState(defaultTime);
+  const d = new Date(`${date}T00:00:00`);
+  const dateLabel = d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' });
+  return (
+    <div className="modal-backdrop" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onCancel}>
+      <div className="phone-lookup-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="phone-lookup-title-row">
+          <span className="phone-lookup-icon"><Clock size={20} /></span>
+          <strong>Horário extra para este dia</strong>
+        </div>
+        <p className="phone-lookup-label">{dateLabel}</p>
+        <div className="phone-lookup-input-row">
+          <Clock size={18} className="phone-lookup-phone-icon" />
+          <input
+            type="time"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            className="phone-lookup-input"
+          />
+        </div>
+        <div className="phone-lookup-actions">
+          <button className="outline-btn" type="button" onClick={onCancel}>Cancelar</button>
+          <button className="primary-btn" type="button" onClick={() => onConfirm(time)}>OK</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function useConfirm() {
+  const [pending, setPending] = useState(null);
+  const confirm = useCallback((message, opts = {}) => new Promise((resolve) => {
+    setPending({ message, resolve, ...opts });
+  }), []);
+  const ConfirmUI = pending ? (
+    <ConfirmModal
+      message={pending.message}
+      title={pending.title}
+      confirmLabel={pending.confirmLabel}
+      confirmClass={pending.confirmClass}
+      onConfirm={() => { pending.resolve(true); setPending(null); }}
+      onCancel={() => { pending.resolve(false); setPending(null); }}
+    />
+  ) : null;
+  return { confirm, ConfirmUI };
+}
+
+function ConfirmModal({ title, message, confirmLabel = 'OK', confirmClass = 'primary-btn', cancelLabel = 'Cancelar', onConfirm, onCancel }) {
+  return (
+    <div className="modal-backdrop" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onCancel}>
+      <div className="phone-lookup-modal" onClick={(e) => e.stopPropagation()}>
+        {title && (
+          <div className="phone-lookup-title-row">
+            <strong>{title}</strong>
+          </div>
+        )}
+        <p className="confirm-modal-message">{message}</p>
+        <div className="phone-lookup-actions">
+          <button className="outline-btn" type="button" onClick={onCancel}>{cancelLabel}</button>
+          <button className={confirmClass} type="button" onClick={onConfirm}>{confirmLabel}</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1726,6 +1841,7 @@ function FinanceScreen({ session }) {
 
 function WhatsappScreen() {
   const toast = useToast();
+  const { confirm, ConfirmUI } = useConfirm();
   const [config, setConfig] = useState(null);
   const [status, setStatus] = useState(null);
   const [qr, setQr] = useState(null);
@@ -1786,7 +1902,8 @@ function WhatsappScreen() {
   };
 
   const reset = async () => {
-    if (!window.confirm('Resetar sessão do WhatsApp?')) return;
+    const ok = await confirm('Resetar a sessão do WhatsApp?', { title: 'Resetar sessão', confirmLabel: 'Resetar', confirmClass: 'danger-btn' });
+    if (!ok) return;
     const result = await resetWhatsappSession(config);
     toast(result.ok ? 'Sessão resetada. Aguarde o QR.' : `Erro: ${result.error}`, result.ok ? 'success' : 'error');
     refreshStatus(config);
@@ -1848,6 +1965,7 @@ function WhatsappScreen() {
         </div>
       </section>
       <button className="primary-btn" onClick={save} disabled={saving}><Save size={18} /> Salvar configuração</button>
+      {ConfirmUI}
     </AdminPage>
   );
 }
@@ -1867,6 +1985,7 @@ function WhatsappTemplateEditor({ title, value, onChange }) {
 
 function ServicesAdminScreen({ onBack }) {
   const toast = useToast();
+  const { confirm, ConfirmUI } = useConfirm();
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null);
@@ -1886,7 +2005,8 @@ function ServicesAdminScreen({ onBack }) {
     load();
   };
   const remove = async (service) => {
-    if (!window.confirm('Excluir serviço?')) return;
+    const ok = await confirm('Excluir este serviço?', { title: 'Excluir serviço', confirmLabel: 'Excluir', confirmClass: 'danger-btn' });
+    if (!ok) return;
     const { error } = await supabase.from('services').delete().eq('id', service.id);
     if (error) toast(`Erro: ${error.message}`, 'error');
     else toast('Serviço excluído.', 'success');
@@ -1924,6 +2044,7 @@ function ServicesAdminScreen({ onBack }) {
         </div>
       )}
       {editing ? <ServiceForm service={editing.id ? editing : null} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} /> : null}
+      {ConfirmUI}
     </AdminPage>
   );
 }
@@ -1985,6 +2106,7 @@ function ServiceForm({ service, onClose, onSaved }) {
 
 function BarbersAdminScreen({ onBack }) {
   const toast = useToast();
+  const { confirm, ConfirmUI } = useConfirm();
   const [barbers, setBarbers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null);
@@ -2004,7 +2126,8 @@ function BarbersAdminScreen({ onBack }) {
     load();
   };
   const remove = async (barber) => {
-    if (!window.confirm(`Excluir "${barber.name}"?`)) return;
+    const ok = await confirm(`Excluir "${barber.name}"?`, { title: 'Excluir barbeiro', confirmLabel: 'Excluir', confirmClass: 'danger-btn' });
+    if (!ok) return;
     const sb = supabase;
     await sb.from('appointments').delete().eq('barber_id', barber.id);
     await sb.from('barber_availability').delete().eq('barber_id', barber.id);
@@ -2036,6 +2159,7 @@ function BarbersAdminScreen({ onBack }) {
         </div>
       )}
       {editing ? <BarberForm barber={editing.id ? editing : null} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} /> : null}
+      {ConfirmUI}
     </AdminPage>
   );
 }
@@ -2114,6 +2238,7 @@ function BarberForm({ barber, onClose, onSaved }) {
 
 function PlanClientsScreen({ session, onBack }) {
   const toast = useToast();
+  const { confirm, ConfirmUI } = useConfirm();
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null);
@@ -2121,7 +2246,20 @@ function PlanClientsScreen({ session, onBack }) {
 
   const load = async () => {
     setLoading(true);
-    const { data, error } = await supabase.from('plan_clients').select('*').order('name');
+    let data, error;
+    if (session.barberId) {
+      // Barber-admin: buscar apenas clientes plano com recorrente vinculado a este barbeiro
+      const { data: schedules, error: schedErr } = await supabase
+        .from('recurring_schedules')
+        .select('plan_client_id')
+        .eq('barber_id', session.barberId);
+      if (schedErr) { toast(`Erro: ${schedErr.message}`, 'error'); setLoading(false); return; }
+      const ids = [...new Set((schedules ?? []).map((s) => s.plan_client_id).filter(Boolean))];
+      if (ids.length === 0) { setClients([]); setLoading(false); return; }
+      ({ data, error } = await supabase.from('plan_clients').select('*').in('id', ids).order('name'));
+    } else {
+      ({ data, error } = await supabase.from('plan_clients').select('*').order('name'));
+    }
     if (error) toast(`Erro: ${error.message}`, 'error');
     setClients(data ?? []);
     setLoading(false);
@@ -2129,7 +2267,8 @@ function PlanClientsScreen({ session, onBack }) {
   useEffect(() => { load(); }, []);
 
   const remove = async (client) => {
-    if (!window.confirm(`Remover "${client.name}" da lista de clientes plano?`)) return;
+    const ok = await confirm(`Remover "${client.name}" da lista de clientes plano?`, { title: 'Remover cliente', confirmLabel: 'Remover', confirmClass: 'danger-btn' });
+    if (!ok) return;
     const { error } = await supabase.from('plan_clients').delete().eq('id', client.id);
     if (error) toast(`Erro: ${error.message}`, 'error');
     else toast('Cliente removido.', 'success');
@@ -2157,6 +2296,7 @@ function PlanClientsScreen({ session, onBack }) {
       )}
       {editing ? <PlanClientForm client={editing.id ? editing : null} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} /> : null}
       {recurring ? <RecurringScheduleModal client={recurring} session={session} onClose={() => setRecurring(null)} /> : null}
+      {ConfirmUI}
     </AdminPage>
   );
 }
@@ -2213,6 +2353,7 @@ function PlanClientForm({ client, onClose, onSaved }) {
 
 function RecurringScheduleModal({ client, session, onClose }) {
   const toast = useToast();
+  const { confirm, ConfirmUI } = useConfirm();
   const [rows, setRows] = useState([]);
   const [barbers, setBarbers] = useState([]);
   const [services, setServices] = useState([]);
@@ -2257,7 +2398,8 @@ function RecurringScheduleModal({ client, session, onClose }) {
     }
   };
   const remove = async (row) => {
-    if (!window.confirm('Remover recorrente?')) return;
+    const ok = await confirm('Remover este agendamento recorrente?', { title: 'Remover recorrente', confirmLabel: 'Remover', confirmClass: 'danger-btn' });
+    if (!ok) return;
     const { error } = await supabase.from('recurring_schedules').delete().eq('id', row.id);
     if (error) toast(`Erro: ${error.message}`, 'error');
     else load();
@@ -2278,6 +2420,7 @@ function RecurringScheduleModal({ client, session, onClose }) {
           {rows.map((row) => <article className="list-card compact-list" key={row.id}><div><strong>{weekDays[row.day_of_week]} · {hhmm(row.appointment_time)}</strong><span>{row.barbers?.name} · {row.services?.name}</span></div><button className="icon-btn red" onClick={() => remove(row)}><Trash2 size={16} /></button></article>)}
         </div>
       </div>
+      {ConfirmUI}
     </Modal>
   );
 }

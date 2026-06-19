@@ -374,13 +374,15 @@ button:disabled {
 }
 
 .service-info strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 900;
-  letter-spacing: 1.5px;
+  letter-spacing: 1px;
   text-shadow: 0 0 8px rgba(0, 0, 0, 0.55);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  line-height: 1.2;
 }
 
 .service-info span {
@@ -399,10 +401,10 @@ button:disabled {
 }
 
 .service-info small {
-  overflow: hidden;
   color: rgba(255, 255, 255, 0.55);
-  text-overflow: ellipsis;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .arrow-box {
@@ -608,8 +610,16 @@ button:disabled {
   display: flex;
   gap: 10px;
 }
+.confirm-modal-message {
+  margin: 0;
+  font-size: 15px;
+  color: #d1cdc7;
+  line-height: 1.5;
+}
+
 .phone-lookup-actions .outline-btn,
-.phone-lookup-actions .primary-btn {
+.phone-lookup-actions .primary-btn,
+.phone-lookup-actions .danger-btn {
   flex: 1;
 }
 
@@ -2328,16 +2338,67 @@ textarea:focus {
     grid-template-columns: auto 1fr auto auto auto;
   }
 
+  /* Nomes de serviços — permitir 2 linhas em vez de truncar */
+  .service-admin-row strong {
+    white-space: normal;
+    word-break: break-word;
+    font-size: 13px;
+    line-height: 1.3;
+  }
+
   .service-admin-row {
     grid-template-columns: auto 1fr auto auto auto;
+    align-items: center;
   }
 
   .service-admin-row .drag-buttons {
     display: none;
   }
 
+  /* Ícone thumb menor no mobile para dar espaço ao nome */
+  .service-admin-row .thumb {
+    width: 42px;
+    height: 42px;
+  }
+
   .slot-card {
     grid-template-columns: 52px 1fr auto;
+  }
+
+  /* Admin topbar — evitar overflow do título */
+  .admin-topbar h1 {
+    font-size: 17px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Barra de ações da agenda — wrap se necessário */
+  .agenda-action-bar {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  /* Legenda compacta — wrap */
+  .agenda-legend-compact {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+
+  /* WhatsApp: chips de variáveis — wrap */
+  .wa-variables {
+    flex-wrap: wrap;
+  }
+
+  /* Formulários — inputs full width */
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Plano clientes — botões menores */
+  .list-card .icon-btn {
+    width: 34px;
+    height: 34px;
   }
 }
 
